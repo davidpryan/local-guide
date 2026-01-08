@@ -444,8 +444,66 @@ document.getElementById('worldButton').addEventListener('click', () => {
     loadCSVFile('Travel Plans.csv');
 });
 
+// Update location and recalculate distances
+async function updateLocationAndDisplay() {
+    if (!locations || locations.length === 0) {
+        return; // No locations loaded yet
+    }
+
+    try {
+        // Get updated location
+        userLocation = await getUserLocation();
+        
+        // Filter locations with valid coordinates
+        const validLocations = locations.filter(loc => loc.coords);
+        
+        if (validLocations.length === 0) {
+            return;
+        }
+        
+        // Recalculate distances and bearings
+        validLocations.forEach(loc => {
+            loc.distance = calculateDistance(
+                userLocation.lat, userLocation.lng,
+                loc.coords.lat, loc.coords.lng
+            );
+            loc.bearing = calculateBearing(
+                userLocation.lat, userLocation.lng,
+                loc.coords.lat, loc.coords.lng
+            );
+            loc.direction = bearingToDirection(loc.bearing);
+        });
+        
+        // Sort by distance
+        validLocations.sort((a, b) => a.distance - b.distance);
+        
+        // Get closest 4 and update display
+        const closest = validLocations.slice(0, 4);
+        updateDisplay(closest);
+        
+    } catch (error) {
+        console.error('Error updating location:', error);
+    }
+}
+
+// Set up interval to update location every 20 seconds
+let locationUpdateInterval = null;
+
+function startLocationUpdates() {
+    // Clear any existing interval
+    if (locationUpdateInterval) {
+        clearInterval(locationUpdateInterval);
+    }
+    
+    // Update every 20 seconds
+    locationUpdateInterval = setInterval(updateLocationAndDisplay, 20000);
+}
+
 // Request location permission on load
 window.addEventListener('load', () => {
     loadCache(); // Load cached geocoding results
     showStatus('Click "Upload CSV File" to get started', 'info');
+    
+    // Start location updates
+    startLocationUpdates();
 });
